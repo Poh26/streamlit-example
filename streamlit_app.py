@@ -1,40 +1,58 @@
-import altair as alt
-import numpy as np
-import pandas as pd
-import streamlit as st
+cat > ~/gemini-app/app_tab3.py <<EOF
+ import streamlit as st
+ from vertexai.preview.generative_models import GenerativeModel, Part
+ from response_utils import *
+ import logging
 
-"""
-# Welcome to Streamlit!
+ # merender tab Playground Gambar dengan beberapa tab turunan
+ def render_image_playground_tab(multimodal_model_pro: GenerativeModel):
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+     st.write("Menggunakan Gemini 1.0 Pro Vision - Model multimodal")
+     recommendations, screens, diagrams, equations = st.tabs(["Rekomendasi furnitur", "Petunjuk oven", "Diagram ER", "Penalaran matematika"])
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+     with recommendations:
+         room_image_uri = "gs://cloud-training/OCBL447/gemini-app/images/living_room.jpeg"
+         chair_1_image_uri = "gs://cloud-training/OCBL447/gemini-app/images/chair1.jpeg"
+         chair_2_image_uri = "gs://cloud-training/OCBL447/gemini-app/images/chair2.jpeg"
+         chair_3_image_uri = "gs://cloud-training/OCBL447/gemini-app/images/chair3.jpeg"
+         chair_4_image_uri = "gs://cloud-training/OCBL447/gemini-app/images/chair4.jpeg"
 
-num_points = st.slider("Number of points in spiral", 1, 10000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
+         room_image_url = "https://storage.googleapis.com/"+room_image_uri.split("gs://")[1]
+         chair_1_image_url = "https://storage.googleapis.com/"+chair_1_image_uri.split("gs://")[1]
+         chair_2_image_url = "https://storage.googleapis.com/"+chair_2_image_uri.split("gs://")[1]
+         chair_3_image_url = "https://storage.googleapis.com/"+chair_3_image_uri.split("gs://")[1]
+         chair_4_image_url = "https://storage.googleapis.com/"+chair_4_image_uri.split("gs://")[1]        
 
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
+         room_image = Part.from_uri(room_image_uri, mime_type="image/jpeg")
+         chair_1_image = Part.from_uri(chair_1_image_uri,mime_type="image/jpeg")
+         chair_2_image = Part.from_uri(chair_2_image_uri,mime_type="image/jpeg")
+         chair_3_image = Part.from_uri(chair_3_image_uri,mime_type="image/jpeg")
+         chair_4_image = Part.from_uri(chair_4_image_uri,mime_type="image/jpeg")
 
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
+         st.image(room_image_url,width=350, caption="Gambar ruang tamu")
+         st.image([chair_1_image_url,chair_2_image_url,chair_3_image_url,chair_4_image_url],width=200, caption=["Kursi 1","Kursi 2","Kursi 3","Kursi 4"])
 
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
+         st.write("Ekspektasi: Rekomendasikan kursi yang dapat melengkapi gambar ruang tamu.")
+prompt_list = ["Pertimbangkan kursi berikut:",
+                     "chair 1:", chair_1_image,
+                     "chair 2:", chair_2_image,
+                     "chair 3:", chair_3_image, "and",
+                     "chair 4:", chair_4_image, "\n"
+                     "Untuk setiap kursi, jelaskan alasan kursi tersebut cocok atau tidak cocok untuk ruangan berikut:",
+                     room_image,
+                     "Hanya rekomendasikan untuk ruangan yang disediakan, bukan yang lain.
+Berikan rekomendasi Anda dalam format tabel beserta nama kursi dan alasannya dalam kolom.",
+]
 
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
-    .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
+         tab1, tab2 = st.tabs(["Respons", "Prompt"])
+         generate_image_description = st.button("Buat rekomendasi", key="generate_image_description")
+         with tab1:
+             if generate_image_description and prompt_list: 
+                 with st.spinner("Membuat rekomendasi menggunakan Gemini..."):
+response = get_gemini_pro_vision_response(multimodal_model_pro, prompt_list)
+                     st.markdown(response)
+                     logging.info(response)
+         with tab2:
+             st.write("Prompt yang digunakan:")
+             st.text(prompt_list)
+ EOF
